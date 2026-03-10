@@ -326,6 +326,14 @@ document.getElementById('cy').addEventListener('contextmenu', function(e) {
   e.preventDefault();
 });
 
+// Keyboard shortcut: / to focus search
+document.addEventListener('keydown', function(e) {
+  if (e.key === '/' && document.activeElement !== searchInput) {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
+
 // Fit on load
 cy.fit(undefined, 40);
 </script>
