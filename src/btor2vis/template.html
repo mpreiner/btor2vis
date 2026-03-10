@@ -44,11 +44,39 @@
     font-size: 13px;
   }
   #controls button:hover { background: #0f3460; }
+  #search {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 1000;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  #search input {
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 13px;
+    width: 200px;
+    outline: none;
+  }
+  #search input:focus { border-color: #e94560; }
+  #search-count {
+    color: #888;
+    font-size: 12px;
+  }
 </style>
 </head>
 <body>
 <div id="cy"></div>
 <div id="tooltip"></div>
+<div id="search">
+  <input type="text" id="search-input" placeholder="Search nodes..." />
+  <span id="search-count"></span>
+</div>
 <div id="controls">
   <button onclick="cy.fit(undefined, 40)">Fit</button>
   <button onclick="cy.zoom({level: cy.zoom() * 1.3, renderedPosition: {x: cy.width()/2, y: cy.height()/2}})">+</button>
@@ -113,6 +141,27 @@ const cy = cytoscape({
       }
     },
     {
+      selector: 'node.search-match',
+      style: {
+        'border-width': 3,
+        'border-color': '#ffdd57',
+        'overlay-color': '#ffdd57',
+        'overlay-opacity': 0.15,
+      }
+    },
+    {
+      selector: 'node.search-dimmed',
+      style: {
+        'opacity': 0.25,
+      }
+    },
+    {
+      selector: 'edge.search-dimmed',
+      style: {
+        'opacity': 0.15,
+      }
+    },
+    {
       selector: 'node:selected',
       style: {
         'border-width': 3,
@@ -159,6 +208,48 @@ cy.on('mousemove', 'node', function(e) {
 
 cy.on('mouseout', 'node', function() {
   tooltip.style.display = 'none';
+});
+
+// Search
+const searchInput = document.getElementById('search-input');
+const searchCount = document.getElementById('search-count');
+
+searchInput.addEventListener('input', function() {
+  const query = this.value.trim().toLowerCase();
+  cy.elements().removeClass('search-match search-dimmed');
+  searchCount.textContent = '';
+
+  if (!query) return;
+
+  const matched = cy.nodes().filter(function(n) {
+    const label = (n.data('label') || '').toLowerCase();
+    const nid = String(n.data('nid'));
+    return label.includes(query) || nid === query;
+  });
+
+  if (matched.length > 0) {
+    matched.addClass('search-match');
+    cy.nodes().not(matched).addClass('search-dimmed');
+    cy.edges().addClass('search-dimmed');
+    matched.connectedEdges().removeClass('search-dimmed');
+    searchCount.textContent = matched.length + ' match' + (matched.length === 1 ? '' : 'es');
+  } else {
+    searchCount.textContent = 'no matches';
+  }
+});
+
+searchInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    const matched = cy.nodes('.search-match');
+    if (matched.length > 0) {
+      cy.animate({ fit: { eles: matched, padding: 60 }, duration: 300 });
+    }
+  }
+  if (e.key === 'Escape') {
+    this.value = '';
+    this.dispatchEvent(new Event('input'));
+    this.blur();
+  }
 });
 
 // Fit on load
