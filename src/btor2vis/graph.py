@@ -58,6 +58,7 @@ def build_cytoscape_graph(nodes: dict[int, Node], sorts: dict[int, Sort]) -> str
                 "label": _node_label(node),
                 "nid": nid,
                 "category": category,
+                "tag": node.tag,
                 "sort": sort_info,
             }
         })

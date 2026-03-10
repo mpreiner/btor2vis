@@ -101,6 +101,39 @@
     font-family: monospace;
     font-size: 12px;
   }
+  #stats {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #0f3460;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    z-index: 1000;
+    line-height: 1.6;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    cursor: pointer;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  #stats .stats-label { color: #888; }
+  #stats .stats-value { font-weight: 600; }
+  #stats-detail {
+    display: none;
+    border-top: 1px solid #0f3460;
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+  #stats.expanded #stats-detail { display: block; }
+  #stats-detail .kind-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  #stats-detail .kind-tag { color: #e0e0e0; }
+  #stats-detail .kind-count { color: #888; text-align: right; }
 </style>
 </head>
 <body>
@@ -117,6 +150,7 @@
   <div><kbd>Enter</kbd> — zoom to search matches</div>
   <div><kbd>Esc</kbd> — clear search</div>
 </div>
+<div id="stats"></div>
 <div id="controls">
   <button id="help-btn" onclick="var p=document.getElementById('help-panel');p.style.display=p.style.display==='block'?'none':'block'">?</button>
   <button onclick="cy.fit(undefined, 40)">Fit</button>
@@ -376,6 +410,44 @@ document.addEventListener('keydown', function(e) {
     searchInput.focus();
   }
 });
+
+// Stats panel
+(function() {
+  var nodes = cy.nodes();
+  var total = nodes.length;
+  var inputs = nodes.filter(function(n) { return n.data('category') === 'input'; }).length;
+  var states = nodes.filter(function(n) { return n.data('category') === 'state'; }).length;
+  var properties = nodes.filter(function(n) { return n.data('category') === 'property'; }).length;
+
+  // Count by tag
+  var tagCounts = {};
+  nodes.forEach(function(n) {
+    var tag = n.data('tag') || 'unknown';
+    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+  });
+  var sortedTags = Object.keys(tagCounts).sort(function(a, b) {
+    return tagCounts[b] - tagCounts[a];
+  });
+  var detailHtml = sortedTags.map(function(tag) {
+    return '<div class="kind-row"><span class="kind-tag">' + tag + '</span><span class="kind-count">' + tagCounts[tag] + '</span></div>';
+  }).join('');
+
+  var statsEl = document.getElementById('stats');
+  statsEl.innerHTML =
+    '<div><span class="stats-label">Nodes:</span> <span class="stats-value">' + total + '</span></div>' +
+    '<div><span class="stats-label">Inputs:</span> <span class="stats-value">' + inputs + '</span></div>' +
+    '<div><span class="stats-label">States:</span> <span class="stats-value">' + states + '</span></div>' +
+    '<div><span class="stats-label">Properties:</span> <span class="stats-value">' + properties + '</span></div>' +
+    '<div id="stats-detail">' +
+    '<div style="color:#888;font-size:11px;margin-bottom:4px">Node kinds</div>' +
+    detailHtml +
+    '</div>';
+
+  statsEl.addEventListener('click', function(e) {
+    e.stopPropagation();
+    statsEl.classList.toggle('expanded');
+  });
+})();
 
 // Fit on load
 cy.fit(undefined, 40);
