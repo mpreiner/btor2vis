@@ -25,7 +25,7 @@ def main():
 
     nodes, sorts = parse_btor2(args.file)
     graph_json = build_cytoscape_graph(nodes, sorts)
-    generate_and_open(graph_json, args.output)
+    generate_and_open(graph_json, args.file.name, args.output)
 
 
 if __name__ == "__main__":

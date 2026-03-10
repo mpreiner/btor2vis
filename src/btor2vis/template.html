@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>btor2vis</title>
+<title>btor2vis — __FILENAME__</title>
 <script src="https://unpkg.com/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
 <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
 <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
@@ -134,6 +134,16 @@
   }
   #stats-detail .kind-tag { color: #e0e0e0; }
   #stats-detail .kind-count { color: #888; text-align: right; }
+  #filename {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #888;
+    font-size: 12px;
+    z-index: 1000;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
@@ -150,6 +160,7 @@
   <div><kbd>Enter</kbd> — zoom to search matches</div>
   <div><kbd>Esc</kbd> — clear search</div>
 </div>
+<div id="filename">__FILENAME__</div>
 <div id="stats"></div>
 <div id="controls">
   <button id="help-btn" onclick="var p=document.getElementById('help-panel');p.style.display=p.style.display==='block'?'none':'block'">?</button>
