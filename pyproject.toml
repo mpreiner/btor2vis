@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "btor2vis"
+version = "0.1.0"
+description = "Interactive visualization of BTOR2 files as directed acyclic graphs"
+requires-python = ">=3.10"
+
+[project.scripts]
+btor2vis = "btor2vis.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

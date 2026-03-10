@@ -1,0 +1,65 @@
+; ALU with constraints: 8-bit ALU that performs add/sub based on opcode
+; Constraints ensure inputs are within valid range and opcode is valid
+; Checks that overflow never occurs under constraints
+
+1 sort bitvec 1
+2 sort bitvec 8
+3 sort bitvec 16
+
+; Primary inputs
+4 input 1 opcode         ; 0 = add, 1 = sub
+5 input 2 operand_a
+6 input 2 operand_b
+
+; Constrain operands to [0, 127] (positive range of signed 8-bit)
+7 sort bitvec 1
+8 const 2 10000000       ; 128
+9 ult 1 5 8              ; operand_a < 128
+10 ult 1 6 8             ; operand_b < 128
+11 constraint 9
+12 constraint 10
+
+; Constrain operand_b >= operand_a when subtracting (prevent negative result)
+13 ulte 1 5 6            ; operand_a <= operand_b
+14 or 1 -4 13            ; opcode==add OR a<=b
+15 constraint 14
+
+; Zero-extend operands to 16 bits for overflow detection
+16 uext 3 5 8
+17 uext 3 6 8
+
+; Compute add and sub on 16 bits
+18 add 3 16 17           ; wide_add = ext(a) + ext(b)
+19 sub 3 17 16           ; wide_sub = ext(b) - ext(a)
+
+; Select result based on opcode
+20 ite 3 4 19 18         ; if opcode then sub else add
+
+; Extract lower 8 bits as result
+21 slice 2 20 7 0
+
+; Check overflow: upper 8 bits should be zero
+22 slice 2 20 15 8
+23 zero 2
+24 eq 1 22 23            ; upper == 0 means no overflow
+25 bad -24               ; overflow is bad
+
+; State: accumulator register
+26 state 2 accumulator
+27 init 2 26 23          ; accumulator starts at 0
+
+; Accumulator gets updated with result each cycle
+28 add 2 26 21
+29 next 2 26 28
+
+; Output the current accumulator value
+30 output 26
+
+; Also check accumulator never exceeds 500 (constrained inputs should prevent this)
+31 const 3 0000000111110100  ; 500 in 16 bits
+32 uext 3 26 8              ; extend accumulator to 16 bits
+33 ult 1 32 31              ; acc < 500
+34 bad -33                  ; acc >= 500 is bad
+
+; Fairness: eventually opcode selects subtraction
+35 fair 4
