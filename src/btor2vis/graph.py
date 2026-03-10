@@ -71,6 +71,7 @@ def build_cytoscape_graph(nodes: dict[int, Node], sorts: dict[int, Sort]) -> str
                     "source": str(nid),
                     "target": str(target),
                     "negated": negated,
+                    "arg_index": i,
                 }
             })
 
