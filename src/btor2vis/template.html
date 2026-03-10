@@ -162,10 +162,39 @@ const cy = cytoscape({
       }
     },
     {
+      selector: 'node.coi-highlight',
+      style: {
+        'border-width': 3,
+        'border-color': '#ffdd57',
+        'overlay-color': '#ffdd57',
+        'overlay-opacity': 0.15,
+      }
+    },
+    {
+      selector: 'edge.coi-highlight',
+      style: {
+        'line-color': '#ffdd57',
+        'target-arrow-color': '#ffdd57',
+        'width': 2,
+      }
+    },
+    {
+      selector: 'node.coi-dimmed',
+      style: {
+        'opacity': 0.25,
+      }
+    },
+    {
+      selector: 'edge.coi-dimmed',
+      style: {
+        'opacity': 0.15,
+      }
+    },
+    {
       selector: 'node:selected',
       style: {
         'border-width': 3,
-        'border-color': '#fff',
+        'border-color': '#ffdd57',
         'overlay-opacity': 0.1,
       }
     },
@@ -216,7 +245,7 @@ const searchCount = document.getElementById('search-count');
 
 searchInput.addEventListener('input', function() {
   const query = this.value.trim().toLowerCase();
-  cy.elements().removeClass('search-match search-dimmed');
+  cy.elements().removeClass('search-match search-dimmed coi-highlight coi-dimmed');
   searchCount.textContent = '';
 
   if (!query) return;
@@ -250,6 +279,43 @@ searchInput.addEventListener('keydown', function(e) {
     this.dispatchEvent(new Event('input'));
     this.blur();
   }
+});
+
+// COI highlighting on node click
+cy.on('tap', 'node', function(e) {
+  cy.elements().removeClass('search-match search-dimmed coi-highlight coi-dimmed');
+  searchInput.value = '';
+  searchCount.textContent = '';
+
+  const node = e.target;
+  const coi = node.successors();
+  const highlighted = node.union(coi);
+  highlighted.addClass('coi-highlight');
+  cy.elements().not(highlighted).addClass('coi-dimmed');
+});
+
+// Parent cone highlighting on right-click
+cy.on('cxttap', 'node', function(e) {
+  cy.elements().removeClass('search-match search-dimmed coi-highlight coi-dimmed');
+  searchInput.value = '';
+  searchCount.textContent = '';
+
+  const node = e.target;
+  const parents = node.predecessors();
+  const highlighted = node.union(parents);
+  highlighted.addClass('coi-highlight');
+  cy.elements().not(highlighted).addClass('coi-dimmed');
+});
+
+cy.on('tap', function(e) {
+  if (e.target === cy) {
+    cy.elements().removeClass('coi-highlight coi-dimmed');
+  }
+});
+
+// Disable browser context menu on the graph
+document.getElementById('cy').addEventListener('contextmenu', function(e) {
+  e.preventDefault();
 });
 
 // Fit on load
