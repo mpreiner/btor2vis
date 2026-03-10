@@ -234,6 +234,8 @@ cy.on('mouseover', 'node', function(e) {
     html += '<div class="tt-sort">' + d.sort + '</div>';
   }
   html += '<div style="color:#888;font-size:11px">' + d.category + '</div>';
+  var nParents = node.incomers('edge').length;
+  html += '<div style="color:#888;font-size:11px">parents: ' + nParents + '</div>';
   tooltip.innerHTML = html;
   tooltip.style.display = 'block';
 });
