@@ -1,2 +1,0 @@
-[console_scripts]
-btor2vis = btor2vis.__main__:main
