@@ -13,3 +13,6 @@ btor2vis = "btor2vis.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+btor2vis = ["template.html"]
