@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>aiger2vis - __FILENAME__</title>
+<script src="https://unpkg.com/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
+<script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+<script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; background: #111827; }
+  #cy { width: 100vw; height: 100vh; }
+  #tooltip {
+    position: absolute;
+    display: none;
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    pointer-events: none;
+    z-index: 1000;
+    max-width: 340px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  #tooltip .tt-nid { color: #9ca3af; font-size: 11px; }
+  #controls {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 6px;
+    z-index: 1000;
+  }
+  #controls button {
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #controls button:hover { background: #374151; }
+  #depth-label {
+    color: #9ca3af;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #depth-input {
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 13px;
+    width: 58px;
+    outline: none;
+    text-align: center;
+  }
+  #depth-input:focus { border-color: #f59e0b; }
+  #search {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 1000;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  #search input {
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 13px;
+    width: 220px;
+    outline: none;
+  }
+  #search input:focus { border-color: #f59e0b; }
+  #search-count { color: #9ca3af; font-size: 12px; }
+  #stats {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    z-index: 1000;
+    line-height: 1.6;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  #filename {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #9ca3af;
+    font-size: 12px;
+    z-index: 1000;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="cy"></div>
+<div id="tooltip"></div>
+<div id="search">
+  <input type="text" id="search-input" placeholder="Search nodes..." />
+  <span id="search-count"></span>
+</div>
+<div id="filename">__FILENAME__</div>
+<div id="stats"></div>
+<div id="controls">
+  <span id="depth-label">Depth: <input type="number" id="depth-input" min="1" placeholder="inf" title="Highlight depth when clicking a node (empty = unlimited)"></span>
+  <button onclick="cy.fit(undefined, 40)">Fit</button>
+  <button onclick="cy.zoom({level: cy.zoom() * 1.3, renderedPosition: {x: cy.width()/2, y: cy.height()/2}})">+</button>
+  <button onclick="cy.zoom({level: cy.zoom() / 1.3, renderedPosition: {x: cy.width()/2, y: cy.height()/2}})">-</button>
+</div>
+<script>
+const graphData = __GRAPH_DATA__;
+
+const categoryColors = {
+  property:  { bg: '#ef4444', border: '#dc2626', text: '#ffffff' },
+  input:     { bg: '#2563eb', border: '#1d4ed8', text: '#ffffff' },
+  constant:  { bg: '#6b7280', border: '#4b5563', text: '#ffffff' },
+  state:     { bg: '#f59e0b', border: '#d97706', text: '#111827' },
+  operator:  { bg: '#10b981', border: '#059669', text: '#111827' },
+};
+
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements: graphData,
+  style: [
+    {
+      selector: 'node',
+      style: {
+        'label': 'data(label)',
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'font-size': '11px',
+        'width': function(ele) { return Math.max(34, ele.data('label').length * 8 + 16); },
+        'height': 30,
+        'shape': 'round-rectangle',
+        'background-color': function(ele) {
+          return (categoryColors[ele.data('category')] || categoryColors.operator).bg;
+        },
+        'border-width': 2,
+        'border-color': function(ele) {
+          return (categoryColors[ele.data('category')] || categoryColors.operator).border;
+        },
+        'color': function(ele) {
+          return (categoryColors[ele.data('category')] || categoryColors.operator).text;
+        },
+        'text-wrap': 'none',
+        'min-zoomed-font-size': 8,
+      }
+    },
+    {
+      selector: 'edge',
+      style: {
+        'width': 1.5,
+        'line-color': '#4b5563',
+        'target-arrow-color': '#4b5563',
+        'target-arrow-shape': 'triangle',
+        'arrow-scale': 0.8,
+        'curve-style': 'bezier',
+        'source-label': 'data(arg_index)',
+        'source-text-offset': 20,
+        'source-text-rotation': 'autorotate',
+        'font-size': '9px',
+        'color': '#9ca3af',
+      }
+    },
+    {
+      selector: 'edge[negated]',
+      style: {
+        'line-style': function(ele) { return ele.data('negated') ? 'dashed' : 'solid'; },
+        'line-color': function(ele) { return ele.data('negated') ? '#f59e0b' : '#4b5563'; },
+        'target-arrow-color': function(ele) { return ele.data('negated') ? '#f59e0b' : '#4b5563'; },
+      }
+    },
+    {
+      selector: 'node.search-match',
+      style: {
+        'border-width': 3,
+        'border-color': '#fde047',
+      }
+    },
+    {
+      selector: 'node.search-dimmed',
+      style: {
+        'opacity': 0.25,
+      }
+    },
+    {
+      selector: 'edge.search-dimmed',
+      style: {
+        'opacity': 0.15,
+      }
+    },
+    {
+      selector: 'node.coi-highlight',
+      style: {
+        'border-width': 3,
+        'border-color': '#fde047',
+      }
+    },
+    {
+      selector: 'edge.coi-highlight',
+      style: {
+        'line-color': '#fde047',
+        'target-arrow-color': '#fde047',
+        'width': 2,
+      }
+    },
+    {
+      selector: 'node.coi-common',
+      style: {
+        'border-width': 4,
+        'border-color': '#60a5fa',
+      }
+    },
+    {
+      selector: 'edge.coi-common',
+      style: {
+        'line-color': '#60a5fa',
+        'target-arrow-color': '#60a5fa',
+        'width': 2.5,
+      }
+    },
+    {
+      selector: 'node.coi-dimmed',
+      style: {
+        'opacity': 0.25,
+      }
+    },
+    {
+      selector: 'edge.coi-dimmed',
+      style: {
+        'opacity': 0.15,
+      }
+    },
+  ],
+  layout: {
+    name: 'dagre',
+    rankDir: 'TB',
+    nodeSep: 30,
+    rankSep: 50,
+    edgeSep: 10,
+    animate: false,
+  },
+  wheelSensitivity: 0.3,
+  minZoom: 0.05,
+  maxZoom: 5,
+});
+
+const tooltip = document.getElementById('tooltip');
+cy.on('mouseover', 'node', function(e) {
+  const d = e.target.data();
+  let html = '<div class="tt-nid">id: ' + d.nid + '</div>';
+  html += '<div><strong>' + d.label + '</strong></div>';
+  html += '<div style="color:#9ca3af;font-size:11px">' + d.tag + ' (' + d.category + ')</div>';
+  tooltip.innerHTML = html;
+  tooltip.style.display = 'block';
+});
+cy.on('mousemove', 'node', function(e) {
+  tooltip.style.left = (e.originalEvent.clientX + 12) + 'px';
+  tooltip.style.top = (e.originalEvent.clientY + 12) + 'px';
+});
+cy.on('mouseout', 'node', function() {
+  tooltip.style.display = 'none';
+});
+
+const searchInput = document.getElementById('search-input');
+const searchCount = document.getElementById('search-count');
+searchInput.addEventListener('input', function() {
+  const query = this.value.trim().toLowerCase();
+  cy.elements().removeClass('search-match search-dimmed coi-highlight coi-common coi-dimmed');
+  searchCount.textContent = '';
+  if (!query) return;
+
+  const matched = cy.nodes().filter(function(n) {
+    const label = (n.data('label') || '').toLowerCase();
+    const nid = String(n.data('nid'));
+    return label.includes(query) || nid === query;
+  });
+
+  if (matched.length > 0) {
+    matched.addClass('search-match');
+    cy.nodes().not(matched).addClass('search-dimmed');
+    cy.edges().addClass('search-dimmed');
+    matched.connectedEdges().removeClass('search-dimmed');
+    searchCount.textContent = matched.length + ' match' + (matched.length === 1 ? '' : 'es');
+  } else {
+    searchCount.textContent = 'no matches';
+  }
+});
+
+searchInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    const matched = cy.nodes('.search-match');
+    if (matched.length > 0) {
+      cy.animate({ fit: { eles: matched, padding: 60 }, duration: 300 });
+    }
+  }
+  if (e.key === 'Escape') {
+    this.value = '';
+    this.dispatchEvent(new Event('input'));
+    this.blur();
+  }
+});
+
+function bfsConeNodes(startNodes, direction, maxDepth, stopAtNodes) {
+  let visited = cy.collection().union(startNodes);
+  let frontier = cy.collection().union(startNodes);
+  for (let d = 0; maxDepth === null || d < maxDepth; d++) {
+    let next = cy.collection();
+    frontier.each(function(n) {
+      if (stopAtNodes && stopAtNodes.has(n) && !startNodes.has(n)) return;
+      const adj = direction === 'out' ? n.outgoers('node') : n.incomers('node');
+      adj.each(function(nn) {
+        if (!visited.has(nn)) next = next.union(nn);
+      });
+    });
+    if (!next.length) break;
+    visited = visited.union(next);
+    frontier = next;
+  }
+  return visited;
+}
+
+function getDepth() {
+  const val = parseInt(document.getElementById('depth-input').value, 10);
+  return Number.isFinite(val) && val >= 1 ? val : null;
+}
+
+let coiState = { ids: [], direction: null };
+function clearCoiClasses() {
+  cy.elements().removeClass('coi-highlight coi-common coi-dimmed');
+}
+
+function computeCommonCut(commonAll, direction) {
+  if (!commonAll.length) return cy.collection();
+  // Common cut = first shared nodes encountered from each selected seed.
+  return commonAll.filter(function(n) {
+    const prev = direction === 'out' ? n.incomers('node') : n.outgoers('node');
+    return prev.intersection(commonAll).length === 0;
+  });
+}
+
+function applyCoiHighlight() {
+  clearCoiClasses();
+  if (!coiState.ids.length) return;
+
+  const depth = getDepth();
+  const dir = coiState.direction;
+  const roots = coiState.ids
+    .map(function(id) { return cy.getElementById(id); })
+    .filter(function(n) { return n && n.length; });
+  if (!roots.length) return;
+
+  const cones = roots.map(function(n) {
+    return bfsConeNodes(cy.collection().union(n), dir, depth, null);
+  });
+
+  let commonAll = cones[0];
+  for (let i = 1; i < cones.length; i++) {
+    commonAll = commonAll.intersection(cones[i]);
+  }
+  const commonNodes = roots.length > 1 ? computeCommonCut(commonAll, dir) : cy.collection();
+
+  let highlightedNodes = cy.collection();
+  roots.forEach(function(n) {
+    if (commonNodes.has(n)) {
+      highlightedNodes = highlightedNodes.union(n);
+      return;
+    }
+    highlightedNodes = highlightedNodes.union(
+      bfsConeNodes(cy.collection().union(n), dir, depth, commonNodes)
+    );
+  });
+  highlightedNodes = highlightedNodes.union(commonNodes);
+
+  const highlightedEdges = cy.edges().filter(function(e) {
+    return highlightedNodes.has(e.source()) && highlightedNodes.has(e.target());
+  });
+  const commonEdges = cy.edges().filter(function(e) {
+    return commonNodes.has(e.source()) && commonNodes.has(e.target());
+  });
+
+  highlightedNodes.addClass('coi-highlight');
+  highlightedEdges.addClass('coi-highlight');
+  commonNodes.addClass('coi-common');
+  commonEdges.addClass('coi-common');
+  cy.elements().not(highlightedNodes).not(highlightedEdges).addClass('coi-dimmed');
+}
+
+document.getElementById('depth-input').addEventListener('input', function() {
+  if (coiState.ids.length) applyCoiHighlight();
+});
+
+cy.on('tap', 'node', function(e) {
+  const node = e.target;
+  const shift = e.originalEvent && e.originalEvent.shiftKey;
+  if (shift && coiState.direction === 'out') {
+    if (coiState.ids.indexOf(node.id()) === -1) coiState.ids.push(node.id());
+  } else {
+    coiState = { ids: [node.id()], direction: 'out' };
+  }
+  applyCoiHighlight();
+});
+
+cy.on('cxttap', 'node', function(e) {
+  const node = e.target;
+  const shift = e.originalEvent && e.originalEvent.shiftKey;
+  if (shift && coiState.direction === 'in') {
+    if (coiState.ids.indexOf(node.id()) === -1) coiState.ids.push(node.id());
+  } else {
+    coiState = { ids: [node.id()], direction: 'in' };
+  }
+  applyCoiHighlight();
+});
+
+cy.on('tap', function(e) {
+  if (e.target === cy) {
+    clearCoiClasses();
+    coiState = { ids: [], direction: null };
+  }
+});
+
+const statsEl = document.getElementById('stats');
+(function() {
+  const nodes = cy.nodes();
+  const total = nodes.length;
+  const inputs = nodes.filter(function(n) { return n.data('category') === 'input'; }).length;
+  const states = nodes.filter(function(n) { return n.data('category') === 'state'; }).length;
+  const outputs = nodes.filter(function(n) { return n.data('tag') === 'output'; }).length;
+  const ands = nodes.filter(function(n) { return n.data('tag') === 'and'; }).length;
+
+  statsEl.innerHTML =
+    '<div>Nodes: <strong>' + total + '</strong></div>' +
+    '<div>Inputs: <strong>' + inputs + '</strong></div>' +
+    '<div>Latches: <strong>' + states + '</strong></div>' +
+    '<div>Outputs: <strong>' + outputs + '</strong></div>' +
+    '<div>ANDs: <strong>' + ands + '</strong></div>';
+})();
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '/' && document.activeElement !== searchInput) {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
+
+document.getElementById('cy').addEventListener('contextmenu', function(e) {
+  e.preventDefault();
+});
+
+cy.fit(undefined, 40);
+</script>
+</body>
+</html>

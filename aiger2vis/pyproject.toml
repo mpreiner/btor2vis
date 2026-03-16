@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiger2vis"
+version = "0.1.0"
+description = "Interactive visualization of AIGER files as directed acyclic graphs"
+requires-python = ">=3.10"
+
+[project.scripts]
+aiger2vis = "aiger2vis.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+aiger2vis = ["template.html"]
